@@ -1,12 +1,10 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 from sqlalchemy import (
     UUID,
-    CheckConstraint,
-    Date,
     DateTime,
     ForeignKey,
     String,
@@ -22,6 +20,12 @@ from src.schemas.task import TaskDB
 
 if TYPE_CHECKING:
     from src.models.user import User
+    from src.models.board import Board
+    from src.models.column import Column
+    from src.models.sprint import Sprint
+    from src.models.group import Group
+    from src.models.task_watcher import TaskWatcher
+    from src.models.task_executor import TaskExecutor
 
 
 class TaskStatus(str, Enum):
@@ -56,62 +60,3 @@ class Task(Base):
 
     def to_schema(self) -> TaskDB:
         return TaskDB(**self.__dict__)
-
-
-class TaskWatcher(Base):
-    __tablename__ = 'task_watchers'
-
-    task_id: Mapped[uuid4] = mapped_column(UUID(as_uuid=True), ForeignKey('tasks.id'), primary_key=True)
-    user_id: Mapped[uuid4] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True)
-
-
-class TaskExecutor(Base):
-    __tablename__ = 'task_executors'
-
-    task_id: Mapped[uuid4] = mapped_column(UUID(as_uuid=True), ForeignKey('tasks.id'), primary_key=True)
-    user_id: Mapped[uuid4] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True)
-
-
-class Board(Base):
-    __tablename__ = 'boards'
-
-    id: Mapped[uuid4] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
-
-    columns: Mapped[list['Column']] = relationship(back_populates='board', cascade='all, delete-orphan')
-    tasks: Mapped[list['Task']] = relationship(back_populates='board')
-
-
-class Column(Base):
-    __tablename__ = 'columns'
-
-    id: Mapped[uuid4] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    board_id: Mapped[int] = mapped_column(ForeignKey('boards.id'), nullable=False)
-
-    board: Mapped['Board'] = relationship(back_populates='columns')
-    tasks: Mapped[list['Task']] = relationship(back_populates='columns')
-
-
-class Sprint(Base):
-    __tablename__ = 'sprints'
-
-    id: Mapped[uuid4] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    start_date: Mapped[date | None] = mapped_column(Date)
-    end_date: Mapped[date | None] = mapped_column(Date)
-
-    __table_args__ = (
-        CheckConstraint('end_date > start_date', name='check_sprint_dates'),
-    )
-
-    tasks: Mapped[list['Task']] = relationship(back_populates='sprint')
-
-
-class Group(Base):
-    __tablename__ = 'groups'
-
-    id: Mapped[uuid4] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
-
-    tasks: Mapped[list['Task']] = relationship(back_populates='group')
