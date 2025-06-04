@@ -1,6 +1,6 @@
 __all__ = [
-    "TaskRepository",
-    "UserRepository",
+    'TaskRepository',
+    'UserRepository',
 ]
 
 from src.repositories.task import TaskRepository

@@ -1,22 +1,19 @@
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from starlette.status import (
-    HTTP_201_CREATED,
-    HTTP_204_NO_CONTENT
-)
+from starlette.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 
 from src.api.v1.services.user import UserService
 from src.schemas.user import (
     UserCreateRequest,
-    UserDB,
     UserCreateResponse,
+    UserDB,
 )
 
-router = APIRouter(prefix="/user")
+router = APIRouter(prefix='/user')
 
 
 @router.post(
-    path="/",
+    path='/',
     status_code=HTTP_201_CREATED,
 )
 async def create_user(
@@ -28,7 +25,7 @@ async def create_user(
 
 
 @router.delete(
-    path="/{user_id}",
+    path='/{user_id}',
     status_code=HTTP_204_NO_CONTENT,
 )
 async def delete_user(

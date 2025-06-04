@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 from pydantic import UUID4
 
 from src.schemas.user import UserCreateRequest, UserDB
@@ -9,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class UserService(BaseService):
-    _repo: str = "user"
+    _repo: str = 'user'
 
     @transaction_mode
     async def create_user(self, user: UserCreateRequest) -> UserDB:

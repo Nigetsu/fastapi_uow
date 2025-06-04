@@ -1,7 +1,7 @@
 __all__ = [
-    "Base",
-    "Task",
-    "User",
+    'Base',
+    'Task',
+    'User',
 ]
 
 from src.models.base import Base

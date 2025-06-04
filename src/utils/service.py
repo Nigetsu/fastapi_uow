@@ -1,6 +1,6 @@
 import functools
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
 from typing import Any, Never, TypeVar, overload
 from uuid import UUID
 

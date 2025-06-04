@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from enum import Enum
 
 from fastapi import Query
-from pydantic import BaseModel, UUID4, field_validator
+from pydantic import UUID4, BaseModel, field_validator
 
 from src.schemas.filter import TypeFilter
-from src.schemas.response import BaseResponse, BaseCreateResponse
+from src.schemas.response import BaseCreateResponse, BaseResponse
 
 
 class TaskID(BaseModel):
@@ -13,19 +13,19 @@ class TaskID(BaseModel):
 
 
 class TaskStatus(str, Enum):
-    TODO = "todo"
-    IN_PROGRESS = "in_progress"
-    DONE = "done"
+    TODO = 'todo'
+    IN_PROGRESS = 'in_progress'
+    DONE = 'done'
 
 
 class TaskCreateRequest(BaseModel):
     title: str
     status: TaskStatus
 
-    @field_validator("title")
+    @field_validator('title')
     def validate_title_length(cls, v):
         if len(v) < 3:
-            raise ValueError("Title must be at least 3 characters long")
+            raise ValueError('Title must be at least 3 characters long')
         return v
 
 
@@ -49,22 +49,22 @@ class TaskUpdateRequest(BaseModel):
     title: str
     description: str | None
 
-    @field_validator("title")
+    @field_validator('title')
     def validate_title_length(cls, v):
         if len(v) < 3:
-            raise ValueError("Title must be at least 3 characters long")
+            raise ValueError('Title must be at least 3 characters long')
         return v
 
-    @field_validator("description")
+    @field_validator('description')
     def validate_description(cls, v):
         if v is not None:
-            forbidden_chars = ["<", ">", "&", "'", "\""]
+            forbidden_chars = ['<', '>', '&', "'", '"']
             if any(char in v for char in forbidden_chars):
-                raise ValueError("Description contains invalid characters")
+                raise ValueError('Description contains invalid characters')
             if len(v) > 2000:
-                raise ValueError("Description too long (max 2000 chars)")
+                raise ValueError('Description too long (max 2000 chars)')
             if len(v) < 3:
-                raise ValueError("Description too short (min 3 chars)")
+                raise ValueError('Description too short (min 3 chars)')
         return v
 
 

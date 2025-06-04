@@ -1,6 +1,6 @@
 __all__ = [
-    "TaskService",
-    "UserService",
+    'TaskService',
+    'UserService',
 ]
 
 from src.api.v1.services.task import TaskService

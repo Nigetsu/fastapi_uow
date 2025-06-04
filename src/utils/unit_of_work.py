@@ -44,8 +44,8 @@ class UnitOfWork(AbstractUnitOfWork):
 
     __slots__ = (
         '_session',
-        'task',
         'is_open',
+        'task',
         'user',
     )
 
