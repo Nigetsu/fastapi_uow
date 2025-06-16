@@ -1,0 +1,132 @@
+import asyncio
+from collections.abc import AsyncGenerator
+
+import pytest
+import pytest_asyncio
+import sqlalchemy
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import Result, sql
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+
+from src.config import get_db_url, settings
+from src.main import app
+from src.models import Base
+from src.utils.unit_of_work import UnitOfWork
+from tests.fixtures import FakeUnitOfWork
+
+DATABASE_URL = get_db_url()
+
+
+@pytest.fixture(scope='session')
+def event_loop(request: pytest.FixtureRequest) -> asyncio.AbstractEventLoop:
+    """Returns a new event_loop."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest_asyncio.fixture(scope='session', autouse=True)
+async def create_test_db(event_loop: None) -> None:
+    """Creates a test base for the duration of the tests."""
+    assert settings.MODE == 'TEST'
+
+    sqlalchemy_database_url = (
+        f'postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASS}@'
+        f'{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}'
+    )
+    nodb_engine = create_async_engine(
+        sqlalchemy_database_url,
+        echo=False,
+        future=True,
+    )
+    db = AsyncSession(bind=nodb_engine)
+
+    db_exists_query = sql.text(f"SELECT 1 FROM pg_catalog.pg_database WHERE datname = '{settings.DB_NAME}'")
+    db_exists: Result = await db.execute(db_exists_query)
+    db_exists = db_exists.fetchone() is not None
+    autocommit_engine = nodb_engine.execution_options(isolation_level='AUTOCOMMIT')
+    connection = await autocommit_engine.connect()
+    if not db_exists:
+        db_create_query = sql.text(f'CREATE DATABASE {settings.DB_NAME}')
+        await connection.execute(db_create_query)
+
+    # yield
+    #
+    # db_drop_query = sql.text(f'DROP DATABASE IF EXISTS {settings.DB_NAME} WITH (FORCE)')
+    # await db.close()
+    # await connection.execute(db_drop_query)
+    # await connection.close()
+    # await nodb_engine.dispose()
+
+
+@pytest_asyncio.fixture(scope='session')
+async def db_engine(create_test_db: None) -> AsyncGenerator[AsyncEngine, None]:
+    """Returns the test Engine."""
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=False,
+        future=True,
+        pool_size=50,
+        max_overflow=100,
+    ).execution_options(compiled_cache=None)
+
+    yield engine
+
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture(scope='session', autouse=True)
+async def setup_schemas(db_engine: AsyncEngine) -> None:
+    """Creates schemas in the test database."""
+    assert settings.MODE == 'TEST'
+
+    schemas = (
+        'schema_for_example',
+    )
+
+    async with db_engine.connect() as conn:
+        for schema in schemas:
+            await conn.execute(sqlalchemy.schema.CreateSchema(schema))
+            await conn.commit()
+
+
+@pytest_asyncio.fixture(scope='session', autouse=True)
+async def setup_db(db_engine: AsyncEngine, setup_schemas: None) -> None:
+    """Creates tables in the test database and insert needs data."""
+    assert settings.MODE == 'TEST'
+
+    async with db_engine.begin() as db_conn:
+        await db_conn.run_sync(Base.metadata.drop_all)
+        await db_conn.run_sync(Base.metadata.create_all)
+
+
+@pytest_asyncio.fixture
+async def transaction_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+    """Returns a connection to the database.
+    Any changes made to the database will NOT be applied, only for the duration of the TestCase.
+    """
+    connection = await db_engine.connect()
+    await connection.begin()
+    session = AsyncSession(bind=connection)
+
+    yield session
+
+    await session.rollback()
+    await connection.close()
+
+
+@pytest_asyncio.fixture
+def fake_uow(transaction_session: AsyncSession) -> FakeUnitOfWork:
+    """Returns the test UnitOfWork for a particular test."""
+    _fake_uow = FakeUnitOfWork(transaction_session)
+    yield _fake_uow
+
+
+@pytest_asyncio.fixture
+async def async_client(fake_uow: FakeUnitOfWork) -> AsyncGenerator[AsyncClient, None]:
+    """Returns async test client."""
+    app.dependency_overrides[UnitOfWork] = lambda: fake_uow
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        yield ac
