@@ -32,7 +32,7 @@ async def create_test_db(event_loop: None) -> None:
 
     sqlalchemy_database_url = (
         f'postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASS}@'
-        f'{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}'
+        f'{settings.DB_HOST}:{settings.DB_PORT}/postgres'
     )
     nodb_engine = create_async_engine(
         sqlalchemy_database_url,
@@ -50,13 +50,13 @@ async def create_test_db(event_loop: None) -> None:
         db_create_query = sql.text(f'CREATE DATABASE {settings.DB_NAME}')
         await connection.execute(db_create_query)
 
-    # yield
-    #
-    # db_drop_query = sql.text(f'DROP DATABASE IF EXISTS {settings.DB_NAME} WITH (FORCE)')
-    # await db.close()
-    # await connection.execute(db_drop_query)
-    # await connection.close()
-    # await nodb_engine.dispose()
+    yield
+
+    db_drop_query = sql.text(f'DROP DATABASE IF EXISTS {settings.DB_NAME} WITH (FORCE)')
+    await db.close()
+    await connection.execute(db_drop_query)
+    await connection.close()
+    await nodb_engine.dispose()
 
 
 @pytest_asyncio.fixture(scope='session')
