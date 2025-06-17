@@ -31,7 +31,7 @@ class TestTaskRouter:
                 assert isinstance(response_data['detail'], list)
 
             else:
-                assert response_data == case.expected_data
+                assert prepare_payload(response) == case.expected_data
 
     @staticmethod
     @pytest.mark.usefixtures('setup_tasks')
